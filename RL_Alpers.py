@@ -189,7 +189,7 @@ print(criterion(output, target))
 sm = nn.Softmax(dim=1) #Softmax converts the 4-dimensional output vector to a probability distribution
 
 def select_action(state):
-        state_t = torch.FloatTensor([state])
+        state_t = torch.FloatTensor(np.array([state]))
         act_probs_t = sm(net(state_t))
         act_probs = act_probs_t.data.numpy()[0]
         action = np.random.choice(len(act_probs), p=act_probs) #chooses randomly one of the 4 actions according to the probabilities returned by the net
@@ -284,7 +284,7 @@ while reward_mean < REWARD_GOAL:
                 
                 #Do the training
                 if len(full_batch) != 0 : # just in case empty during an iteration
-                  state_t = torch.FloatTensor(state) #batch of states: [[1.0,0,0,0,0,0,0,0,0,0],[1,...]]               
+                  state_t = torch.FloatTensor(np.array(state)) #batch of states: [[1.0,0,0,0,0,0,0,0,0,0],[1,...]]               
                   acts_t = torch.LongTensor(acts) # batch of actions: [0,2,3,1,..]               
                   
                   #print(state_t)
@@ -317,10 +317,10 @@ env.reset()
 state=[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 done=0
 counter=0
-MAXCOUNTER=15
+MAXCOUNTER=5
 
-print("Step: "+str(counter))
-print(env.render())
+print("\nStep: "+str(counter), "-------")
+print(np.size(env.render()), env.render()[0:3])
 
 while done !=1 and counter<MAXCOUNTER:
   state_t = torch.FloatTensor([state])
@@ -332,7 +332,7 @@ while done !=1 and counter<MAXCOUNTER:
   next_state, reward, done, _ , _= env.step(proposed_action)
   state=next_state.tolist()
   counter+=1
-  print("Step: "+str(counter))
+  print("\tStep: "+str(counter))
   print(env.render())
 
 
