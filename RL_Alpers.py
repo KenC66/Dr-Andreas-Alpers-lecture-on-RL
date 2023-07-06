@@ -320,7 +320,7 @@ counter=0
 MAXCOUNTER=5
 
 print("\nStep: "+str(counter), "-------")
-print(np.size(env.render()), env.render()[0:3])
+print(env.render())
 
 while done !=1 and counter<MAXCOUNTER:
   state_t = torch.FloatTensor([state])
