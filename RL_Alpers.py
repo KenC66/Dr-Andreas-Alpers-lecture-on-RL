@@ -1,79 +1,7 @@
-#!/usr/bin/env python
-# coding: utf-8
+# Converted from RL_Alpers.ipynb adding more printings and selecting 8x8  (grid) 
 
 # # Deep Reinforcement Learning: The Cross-Entropy Method
-# 
-# ## Introduction
-# __Reinforcement Learning (RL)__ sits somewhere between __Supervised__ and __Unsupervised Learning.__
-# 
-# * __Supervised Learning__: Training data $(x_i,y_i),$ $i=1,\dots,$ with the $x_i$ representing data points and $y_i$ the corresponding label.<br>
-# Examples: Support Vector Machines (SVMs), Bayes Classifiers, Decision Trees, Neural Networks, etc.
-# 
-# * __Unsupervised Learning__: One just has data points $x_i,$ $i=1,\dots,n,$ but not label.<br> 
-# Examples: Clustering algorithms, Principal Component Analysis (PCA), 
-# 
-# __Reinforcement Learning__ follows a different route. RL differs from supervised learning in a way that in supervised learning the training data has the answer key with it so the model is trained with the correct answer itself whereas in RL, there is no answer but the reinforcement agent decides what to do to perform the given task. In the absence of a training dataset, it is bound to learn from its experience. <br>
-# Examples: 
-# * [Game Playing](https://www.deepmind.com/research/highlighted-research/alphago), 
-# * [Robotics](https://www.aiperspectives.com/artificial-intelligence-and-robotics), 
-# * [Medical Imaging](https://arxiv.org/abs/2103.05115), 
-# * [Mathematics (finding constructions/counterexamples to open conjectures)](https://arxiv.org/abs/2104.14516).
-# 
-# Reinforcement learning can be viewed as being a technique for solving Markov decision processes.
-# 
-# A __Markov decision process__ is a tuple $(\Omega, A, T, R)$ in which
-# * $\Omega$ is the set of __states__,
-# * $A$ is a finite set of __actions,__
-# * $T$ is a __transition function__ $T:\Omega\times A \times \Omega\to [0,1],$ which, for $T(\omega,a,\omega'),$ gives the probability that action $a$ performed in state $\omega$ will lead to state $\omega',$
-# * and $R$ is a __reward function__ defined as $R:\Omega \times A \to \mathbb{R}.$
-# 
-# A __policy__ $\rho$ is a function $\rho:\Omega \to A,$ which tells the agent which action to perform in any given state. 
-# 
-# The main goal of learning in this context is to learn (i.e., find) a policy that gathers rewards:
-# 
-# * DISCOUNTED REWARD: $ \max\mathbb{E}[\sum_{t=0}^\infty \gamma^t r_t]$ with $0\leq \gamma \leq1$ a fixed constant. 
-# 
-# A lower $\gamma$ makes 
-# rewards from the uncertain far future less important for our agent 
-# than the ones in the near future that it can be fairly confident 
-# about. It also encourages agents to collect reward closer in time 
-# than equivalent rewards that are temporally far away in the future.
-# 
-# The main idea behind Q-learning is that if we had a function
-# $Q^*: \Omega \times A \rightarrow \mathbb{R}$, that could tell
-# us what our return would be, if we were to take an action in a given
-# state, then we could easily construct a policy that maximizes our
-# rewards:
-# 
-# \begin{align}\rho^*(s) = \arg\!\max_a \ Q^*(s, a)\end{align}
-# 
-# However, we don't know everything about the world, so we don't have
-# access to $Q^*$. But, since neural networks are universal function
-# approximators, we can simply create one and train it to resemble
-# $Q^*$.
-# 
-# 
-# ### Deep Reinforcement Learning
-# 
-# This brings us to Deep Reinforcement Learning, i.e., Reinforcement Learning using deep neural networks. We discuss one particular method, the so-called __Cross-Entropy__ method. This method is, of course, not always the best method, but it has its own strenghts. The most important ones are the following:
-# 
-# * __Simplicity__: The cross-entropy method is really simple (<100 lines of code) and intuitive. 
-# * __Good convergence__: In environments that don't require complex, multistep policies to be learned and discovered and have short episodes with frequent rewards, cross-entropy usually works very well. 
-# 
-# We will introduce and discuss this method by discussing the rather popular RL environment FrozenLake. The FrozenLake environment is part of the OpenAI's Gym package, which gives several tools to simulate and compare RL approaches. 
-# 
-# ### FrozenLake
-# 
-# You and your friends were tossing around a frisbee at the park when you made a wild throw that left the frisbee out in the middle of the lake (G). The water is mostly frozen (F), but there are a few holes (H) where the ice has melted.
-# 
-# ![title](Frozen-Lake.png)
-# 
-# If you step into one of those holes, you’ll fall into the freezing water. At this time, there’s an international frisbee shortage, so it’s absolutely imperative that you navigate across the lake and retrieve the disc. However, the ice is slippery, so you won’t always move in the direction you intend.
-# 
-# The episode ends when you reach the goal or fall in a hole. You receive a reward of 1 if you reach the goal, and zero otherwise.
-
-# In[ ]:
-
+#  via: jupyter --nbconvert RL_Alpers.ipynb
 
 import numpy as np
 import torch
@@ -85,13 +13,12 @@ import gym.spaces
 import time
 
 
-# In[ ]:
+# In[ ]:  IMPORTANT STEP
 
-
-env = gym.make("FrozenLake-v1", is_slippery=False, map_name="4x4", render_mode="ansi")
+env = gym.make("FrozenLake-v1", is_slippery=False, map_name="8x8", render_mode="ansi")
 print("Action space: ", env.action_space)
-print("Observation space: ", env.observation_space)
-
+print("Observation space: ", env.observation_space, "with postions = %d" % env.observation_space.n)
+Total_posi = env.observation_space.n
 
 # Let's start the environment.
 
@@ -110,7 +37,7 @@ print(env.render())
 next_state, reward, episode_is_done, _ , _= env.step(2)
 print(env.render())
 print(f'Reward = {reward}')
-
+print( next_state, reward, episode_is_done, '<== next_state, reward, episode_is_done')
 
 # In principle, we can work out here the optimal policy. (Idea: Moving backwards. Keyword: Bellman-Ford equation, Dynamic Programming). We want to follow here, however, a deep learning aproach.
 # 
@@ -173,10 +100,10 @@ optimizer = optim.Adam(params=net.parameters(), lr=0.001)
 
 
 criterion = nn.CrossEntropyLoss()
-output = torch.tensor([[3.2, 1.3,0.2, 0.8]],dtype=torch.float)
-target = torch.tensor([0], dtype=torch.long)
-print(criterion(output, target))
-#print(-output[0][0]+np.log(np.exp(output[0][0])+np.exp(output[0][1])+np.exp(output[0][2])+np.exp(output[0][3])))
+# output = torch.tensor([[3.2, 1.3,0.2, 0.8]],dtype=torch.float)
+# target = torch.tensor([0], dtype=torch.long)
+# print(criterion(output, target))
+# #print(-output[0][0]+np.log(np.exp(output[0][0])+np.exp(output[0][1])+np.exp(output[0][2])+np.exp(output[0][3])))
 
 
 # $\ell(x,c)=0$ would be perfect.<br> ![title](CrossEntropyBinaryLoss.png)
@@ -200,23 +127,16 @@ def select_action(state):
 
 
 #Here some explantion for the code above:
-a=[0.1,0.3,0.4,0,0,0,0,0,0,0,0,0,0,0,0,0]
-st=torch.FloatTensor([a])
-print(st)
-st2=sm(net(st))
-print(st2)
-print(st2.data.numpy()[0])
+# a=[0.1,0.3,0.4,0,0,0,0,0,0,0,0,0,0,0,0,0]
+# st=torch.FloatTensor([a])
+# print(st)
+# st2=sm(net(st))
+# print(st2)
+# print(st2.data.numpy()[0])
 
 
 # In[ ]:
 
-
-BATCH_SIZE = 2 #100
-
-GAMMA = 0.9
-
-PERCENTILE = 30 #30
-REWARD_GOAL = 0.8
 
 from collections import namedtuple  #more readable tuples
 
@@ -227,85 +147,90 @@ EpisodeStep = namedtuple('EpisodeStep', field_names=['observation', 'action'])
 # In[ ]:
 
 
-start_time = time.time()
+start_time = time.time() #==================== MAIN 
 
+
+BATCH_SIZE = 200  #100
+GAMMA = 0.7
+MAXCOUNTER=500
+
+PERCENTILE = 30 #30
+REWARD_GOAL = 0.91
 iter_no = 0
 reward_mean = 0
 full_batch = []
 batch = []
 episode_steps = []
 episode_reward = 0.0
-state,_ = env.reset() 
+state,_ = env.reset(); kt=0; pr=0
     
 while reward_mean < REWARD_GOAL:
+        
         action = select_action(state)
         next_state, reward, episode_is_done, _ , _= env.step(action)
 
         episode_steps.append(EpisodeStep(observation=state, action=action))
-        episode_reward += reward
+        episode_reward += reward;            #print(episode_steps)
         
-        #print(episode_steps)
-        
-        if episode_is_done: # Episode finished      
-            batch.append(Episode(reward=episode_reward, steps=episode_steps))
-            
-            #print("Episode finished")
-            #print(batch)
-            #input("Press Enter to continue...") 
+        if episode_is_done: # Episode finished  
 
-            #print(len(batch))
-            
-            next_state,_ = env.reset()
-            episode_steps = []
-            episode_reward = 0.0
+            if (next_state[-1]==1) :
+                kt += 1 # counter of batch
+                if ((kt-1) % 40==0) and (iter_no>=99 and iter_no<=100):
+                     pr=1
+                     print('\t%2d' % kt, ':', action,np.int16(state), '\n\t>', np.int16(next_state));
+
+              
+            batch.append(Episode(reward=episode_reward, steps=episode_steps))            
+            #print(batch);   
+            next_state,_ = env.reset();         episode_steps = [];            episode_reward = 0.0
              
             if len(batch) == BATCH_SIZE: # New set of batches ready --> select "elite"
+                               
                 reward_mean = float(np.mean(list(map(lambda s: s.reward, batch)))) #compute mean reward (lambda is inline function)
                 elite_candidates= batch
-                #elite_candidates= batch + full_batch
+                if pr==1:
+                        print("%3d Past episode checking : reward %.2f or avg %.2f " % (iter_no,episode_reward,reward_mean), 
+                               "Batch size= ",len(batch), f'({kt:d} times to G)');   
+                pr=0; kt=0
+                # if reward_mean>.970:
+                #         input("Press Enter to continue..."); 
+                # #elite_candidates= batch + full_batch
                 returnG = list(map(lambda s: s.reward * (GAMMA ** len(s.steps)), elite_candidates))
                 reward_bound = np.percentile(returnG, PERCENTILE) #lowest score that is greater than PERCENTILE% of scores in the data set
                                                                   #Keep the highest 100-PERCENTILE %
                 #print("Batch finished", returnG, reward_bound)
                 
-                train_obs = []
-                train_act = []
-                elite_batch = []
+                state = [];            acts = [];                elite_batch = []
                 
                 for example, discounted_reward in zip(elite_candidates, returnG):
-                        if discounted_reward > reward_bound:
-                        #if discounted_reward >= reward_bound:    
-                              train_obs.extend(map(lambda step: step.observation, example.steps))
-                              train_act.extend(map(lambda step: step.action, example.steps))
+                        if discounted_reward > reward_bound:                         #if discounted_reward >= reward_bound:    
+                              state.extend(map(lambda step: step.observation, example.steps))
+                              acts.extend(map(lambda step: step.action, example.steps))
                               elite_batch.append(example)
-                full_batch=elite_batch
-                state=train_obs
-                acts=train_act
+                full_batch=elite_batch           
                 
                 #Do the training
                 if len(full_batch) != 0 : # just in case empty during an iteration
                   state_t = torch.FloatTensor(np.array(state)) #batch of states: [[1.0,0,0,0,0,0,0,0,0,0],[1,...]]               
-                  acts_t = torch.LongTensor(acts) # batch of actions: [0,2,3,1,..]               
-                  
-                  #print(state_t)
-                  #print(acts_t)
-                  #input("Press Enter to continue...")  
+                  acts_t = torch.LongTensor(acts) # batch of actions: [0,2,3,1,..]                                 
+                  #print(state_t);                  #print(acts_t);                  #input("Press Enter to continue...")  
                     
                   optimizer.zero_grad()  #it is good practice to do this, initializing the gradient computations
                   action_scores_t = net(state_t)
                   
-                  #print(action_scores_t)
-                  #input("Press Enter to continue...") 
-                
+                  #print(action_scores_t);                  #input("Press Enter to continue...")                 
                   loss_t = objective(action_scores_t, acts_t)
                   loss_t.backward() #computes the gradients
                   optimizer.step() #updates the weights according to the gradients
-                  print("%2d: loss=%.3f, reward_mean=%.3f" % (iter_no, loss_t.item(), reward_mean))
+                  if iter_no % 20==0:
+                       print("epo=%3d: loss=%.3f, reward_mean=%.3f" % (iter_no, loss_t.item(), reward_mean),
+                             'selecting %d / %d' %(len(full_batch),BATCH_SIZE))
                   iter_no += 1
                 batch = [] #empty the batch
         state = next_state
         
-print("  ----- %.2f seconds ---" % (time.time() - start_time))
+print("  %d Traning Steps done ----- %.2f seconds ---" % (iter_no, time.time() - start_time))
 
 
 # Let's test (explicitely) what our NN learned.
@@ -314,16 +239,22 @@ print("  ----- %.2f seconds ---" % (time.time() - start_time))
 
 
 env.reset()
-state=[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-done=0
-counter=0
-MAXCOUNTER=5
+# state=np.array([1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
+ 
+state=np.zeros(Total_posi, dtype=int); state[0]=1
+state=state[None,].tolist();   done=0;  counter=0
 
-print("\nStep: "+str(counter), "-------")
-print(env.render())
+print("\nStep: "+str(counter), "-------");  print(env.render())
 
 while done !=1 and counter<MAXCOUNTER:
-  state_t = torch.FloatTensor([state])
+  if (counter+1) % 10==0:
+        print('%2d' % counter, end='\r')
+  else:
+        print('%2d_' % counter, end="");  
+  #print(state.dtype) #state #torch.from_numpy(state) #   b
+  state_t =  torch.FloatTensor([state]) #state #
+  #print(state_t.dtype)
+  #print(state_t.dtype, state_t.shape)
   action_scores_t = net(state_t)
   act_probs_t = sm(action_scores_t)
   #print(act_probs_t)
@@ -332,8 +263,12 @@ while done !=1 and counter<MAXCOUNTER:
   next_state, reward, done, _ , _= env.step(proposed_action)
   state=next_state.tolist()
   counter+=1
-  print("\tStep: "+str(counter))
-  print(env.render())
+print("\tStep: "+str(counter))
+print(env.render(), np.int16(state), '<- Last state')
+if (next_state[-1]==1) :
+     print('Success :-) *** using %d steps' % counter)
+else:
+     print(f'MAXCOUNTER = {MAXCOUNTER} reached but need more steps :-(')
 
 
 # ## Homework
